@@ -1,14 +1,13 @@
 # config.py
-
 import pygame
 
 # Initialize Pygame (needed for font definitions)
 pygame.init()
 
 # Window and tile settings
-TILE_SIZE = 50
-WINDOW_WIDTH = 10 * TILE_SIZE
-WINDOW_HEIGHT = 12 * TILE_SIZE
+TILE_SIZE = 30
+WINDOW_WIDTH = 16 * TILE_SIZE  # 480
+WINDOW_HEIGHT = 18 * TILE_SIZE # 540
 WINDOW_TITLE = "Maze Race: Player vs AI"
 
 # Color definitions
@@ -21,28 +20,13 @@ GRAY = (150, 150, 150)
 YELLOW = (255, 255, 0)
 
 # Font settings
-FONT = pygame.font.SysFont(None, 30)
-WINNER_FONT = pygame.font.SysFont(None, 60)
+FONT = pygame.font.SysFont(None, 20)  # Smaller font for smaller tiles
+WINNER_FONT = pygame.font.SysFont(None, 40)
 
-# Maze library (can add more mazes here)
-MAZE_LIBRARY = [
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 0, 1],
-        [1, 0, 1, 0, 0, 0, 1, 0, 0, 1],
-        [1, 0, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        [1, 1, 1, 0, 1, 0, 1, 1, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1, 0, 0, 1],
-        [1, 0, 1, 0, 0, 0, 1, 0, 0, 0],  # Goal at [8, 8] is reachable
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1]
-    ]
-]
+# Maze is now generated dynamically using generator.py
 
 # Initial positions
 START_POS = [1, 1]
-GOAL_POS = [8, 8]
 
 # AI Q-learning parameters
 ACTIONS = ["left", "right", "up", "down"]

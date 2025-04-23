@@ -7,29 +7,29 @@ import numpy as np
 import random
 import time
 from config import *  # Import all settings from config.py
+from generator import generate_maze  # Import maze generator
 
 # Set up display
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption(WINDOW_TITLE)
 
 # Game state variables
-current_maze_idx = 0
-maze = MAZE_LIBRARY[current_maze_idx]
-player_pos = START_POS.copy()
-ai_pos = START_POS.copy()
-
-start_time = None     # Timer starts when first move is made
+maze_size = 10
+maze = generate_maze(size=maze_size)
+player_pos = START_POS.copy()  # [1, 1]
+ai_pos = START_POS.copy()      # [1, 1]
+goal_pos = [maze_size - 2, maze_size - 2]  # [8, 8] for 10x10
+current_mode = "Easy"  # Default mode
+start_time = None      # Timer starts when first move is made
 elapsed_time = 0
 game_over = False
-winner = None         # Will store "Player" or "AI" when someone reaches green box
+winner = None          # Will store "Player" or "AI" when someone reaches green box
 
-#  5544setup
-q_table = np.zeros((10, 10, len(ACTIONS)))
+# Setup
+q_table = np.zeros((maze_size, maze_size, len(ACTIONS)))
 episodes = 0
 
-
 # Main game loop setup
-show_menu = True
 running = True
 clock = pygame.time.Clock()
 exploration_rate = EXPLORATION_RATE  # Initial value from config
@@ -37,7 +37,7 @@ exploration_rate = EXPLORATION_RATE  # Initial value from config
 # Reward function for AI
 def get_reward(pos):
     """Calculate reward for AI's position"""
-    if pos == GOAL_POS:  # Reaching green box gives big reward
+    if pos == goal_pos:  # Reaching green box gives big reward
         return 100
     elif maze[pos[1]][pos[0]] == 1:  # Hitting wall is bad
         return -10
@@ -50,27 +50,17 @@ def get_next_pos(pos, action):
     new_pos = pos.copy()
     if action == "left" and new_pos[0] > 0:
         new_pos[0] -= 1
-    elif action == "right" and new_pos[0] < 9:
+    elif action == "right" and new_pos[0] < maze_size - 1:
         new_pos[0] += 1
     elif action == "up" and new_pos[1] > 0:
         new_pos[1] -= 1
-    elif action == "down" and new_pos[1] < 9:
+    elif action == "down" and new_pos[1] < maze_size - 1:
         new_pos[1] += 1
     return new_pos
 
-
-
 def game_loop():
-    global running
-    global game_over
-    global exploration_rate
-    global ai_pos
-    global maze
-    global start_time
-    global player_pos
-    global current_maze_idx
-    global elapsed_time
-    global episodes
+    global running, game_over, exploration_rate, ai_pos, maze, start_time
+    global player_pos, elapsed_time, episodes, maze_size, goal_pos, q_table
 
     while running:
         # Handle events
@@ -85,11 +75,11 @@ def game_loop():
                 new_pos = player_pos.copy()
                 if event.key == pygame.K_LEFT and new_pos[0] > 0:
                     new_pos[0] -= 1
-                elif event.key == pygame.K_RIGHT and new_pos[0] < 9:
+                elif event.key == pygame.K_RIGHT and new_pos[0] < maze_size - 1:
                     new_pos[0] += 1
                 elif event.key == pygame.K_UP and new_pos[1] > 0:
                     new_pos[1] -= 1
-                elif event.key == pygame.K_DOWN and new_pos[1] < 9:
+                elif event.key == pygame.K_DOWN and new_pos[1] < maze_size - 1:
                     new_pos[1] += 1
                 if maze[new_pos[1]][new_pos[0]] == 0:  # Only move if not a wall
                     player_pos = new_pos
@@ -99,16 +89,18 @@ def game_loop():
             # Handle "Next" button click after game over
             if game_over and event.type == pygame.MOUSEBUTTONDOWN:
                 if NEXT_BUTTON.collidepoint(event.pos):
-                    current_maze_idx = (current_maze_idx + 1) % len(MAZE_LIBRARY)
-                    maze = MAZE_LIBRARY[current_maze_idx]
+                    maze_size = 16 if current_mode in ["Medium", "Blackout"] else 10
+                    maze = generate_maze(size=maze_size)
                     player_pos = START_POS.copy()
                     ai_pos = START_POS.copy()
+                    goal_pos = [maze_size - 2, maze_size - 2]
+                    q_table = np.zeros((maze_size, maze_size, len(ACTIONS)))
                     start_time = None
                     elapsed_time = 0
                     game_over = False
                     winner = None
                     episodes += 1
-                    print(f"Switched to Maze {current_maze_idx + 1}")
+                    print(f"Generated new {maze_size}x{maze_size} maze for Episode {episodes + 1}")
 
         # AI movement (Q-learning)
         if not game_over:
@@ -139,27 +131,43 @@ def game_loop():
             elapsed_time = time.time() - start_time
 
         # Check for winner: First to step on green box (goal_pos) wins
-        if not game_over and (player_pos == GOAL_POS or ai_pos == GOAL_POS):
+        if not game_over and (player_pos == goal_pos or ai_pos == goal_pos):
             game_over = True
-            winner = "Player" if player_pos == GOAL_POS else "AI"  # Whoever reaches green box first
-            print(f"Episode {episodes + 1}: {winner} Wins on Maze {current_maze_idx + 1} in {elapsed_time:.2f} seconds!")
+            winner = "Player" if player_pos == goal_pos else "AI"
+            print(f"Episode {episodes + 1}: {winner} Wins in {elapsed_time:.2f} seconds!")
 
         # Draw game elements
         screen.fill(WHITE)
-        for y in range(10):
-            for x in range(10):
-                if maze[y][x] == 1:
-                    pygame.draw.rect(screen, BLACK, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        if current_mode == "Blackout":
+            # Blackout mode: render only 3x3 areas around player, AI, and goal
+            for y in range(maze_size):
+                for x in range(maze_size):
+                    # Check if tile is within 3x3 of player, AI, or goal
+                    is_visible = (
+                        (abs(x - player_pos[0]) <= 1 and abs(y - player_pos[1]) <= 1) or
+                        (abs(x - ai_pos[0]) <= 1 and abs(y - ai_pos[1]) <= 1) or
+                        (abs(x - goal_pos[0]) <= 1 and abs(y - goal_pos[1]) <= 1)
+                    )
+                    if is_visible and maze[y][x] == 1:
+                        pygame.draw.rect(screen, BLACK, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                    elif not is_visible:
+                        pygame.draw.rect(screen, BLACK, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        else:
+            # Normal rendering for Easy and Medium
+            for y in range(maze_size):
+                for x in range(maze_size):
+                    if maze[y][x] == 1:
+                        pygame.draw.rect(screen, BLACK, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
         # Draw goal (green box), player (blue), and AI (red)
-        pygame.draw.rect(screen, GREEN, (GOAL_POS[0] * TILE_SIZE, GOAL_POS[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        pygame.draw.rect(screen, GREEN, (goal_pos[0] * TILE_SIZE, goal_pos[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE))
         pygame.draw.rect(screen, BLUE, (player_pos[0] * TILE_SIZE, player_pos[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE))
         pygame.draw.rect(screen, RED, (ai_pos[0] * TILE_SIZE, ai_pos[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
-        # Display timer and maze number
+        # Display timer and episode number
         timer_text = FONT.render(f"Time: {elapsed_time:.2f}s", True, BLACK)
         screen.blit(timer_text, (10, WINDOW_HEIGHT - 40))
-        maze_text = FONT.render(f"Maze {current_maze_idx + 1}", True, BLACK)
+        maze_text = FONT.render(f"Episode {episodes + 1}", True, BLACK)
         screen.blit(maze_text, (10, 10))
 
         # Victory screen when someone wins
@@ -190,11 +198,9 @@ def game_loop():
             next_rect = next_text.get_rect(center=NEXT_BUTTON.center)
             screen.blit(next_text, next_rect)
 
-    
         # Update display and control frame rate
         pygame.display.flip()
         clock.tick(FPS)
-
 
 BG = pygame.image.load("assets/background.png")
 SCREEN = pygame.display.set_mode((500,600))
@@ -202,11 +208,6 @@ def get_font(size):
     return pygame.font.Font("assets/font.ttf", size)
 
 def main_menu():
-
-    #music = pygame.mixer.music.load('Audio/MenuMusic.wav')
-    #pygame.mixer.music.play(-1, 0.0)
-    #BGM
-
     while True:
         SCREEN.blit(BG, (0, 0))
 
@@ -232,8 +233,7 @@ def main_menu():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
-                   # pygame.mixer.music.stop()
-                    difficulty_select() #Soon
+                    difficulty_select()
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.quit()
                     sys.exit()
@@ -241,28 +241,30 @@ def main_menu():
         pygame.display.update()
 
 def difficulty_select():
-   # Difficulty_music = pygame.mixer.music.load('Audio/DifficultySelectMusic.wav')
-   # pygame.mixer.music.play(-1, 0.0)
-   # GAMEBGM
-
+    global maze, player_pos, ai_pos, episodes, maze_size, goal_pos, q_table, current_mode
     Difficulty_image = pygame.image.load('assets/Difficulty.png').convert()
-    screen.blit(Difficulty_image,(0,0))
     
     while True:
-        
+        SCREEN.blit(Difficulty_image, (0, 0))
         DIFFICULTY_SELECT_MOUSE_POS = pygame.mouse.get_pos()
-
-        #SCREEN.fill("Gray")
 
         DIFFICULTY_SELECT_TEXT = get_font(28).render("SELECT DIFFICULTY", True, "White")
         DIFFICULTY_SELECT_RECT = DIFFICULTY_SELECT_TEXT.get_rect(center=(250, 100))
         SCREEN.blit(DIFFICULTY_SELECT_TEXT, DIFFICULTY_SELECT_RECT)
 
         DIFFICULTY_SELECT_BACK = Button(image=None, pos=(250, 750), 
-                            text_input="BACK", font=get_font(35), base_color="Black", hovering_color="Green")
+                                       text_input="BACK", font=get_font(35), 
+                                       base_color="Black", hovering_color="Green")
+        EASY_BUTTON = Button(image=pygame.image.load("assets/PlayRect.png"), pos=(250, 200), 
+                            text_input="Easy", font=get_font(25), base_color="#d7fcd4", hovering_color="White")
+        MEDIUM_BUTTON = Button(image=pygame.image.load("assets/PlayRect.png"), pos=(250, 350), 
+                              text_input="Medium", font=get_font(25), base_color="#d7fcd4", hovering_color="White")
+        BLACKOUT_BUTTON = Button(image=pygame.image.load("assets/PlayRect.png"), pos=(250, 500), 
+                                text_input="Blackout", font=get_font(25), base_color="#d7fcd4", hovering_color="White")
 
-        DIFFICULTY_SELECT_BACK.changeColor(DIFFICULTY_SELECT_MOUSE_POS)
-        DIFFICULTY_SELECT_BACK.update(SCREEN)
+        for button in [DIFFICULTY_SELECT_BACK, EASY_BUTTON, MEDIUM_BUTTON, BLACKOUT_BUTTON]:
+            button.changeColor(DIFFICULTY_SELECT_MOUSE_POS)
+            button.update(SCREEN)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -271,40 +273,44 @@ def difficulty_select():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if DIFFICULTY_SELECT_BACK.checkForInput(DIFFICULTY_SELECT_MOUSE_POS):
                     main_menu()
-        EASY_BUTTON = Button(image=pygame.image.load("assets/PlayRect.png"), pos=(250, 200), 
-                            text_input="Easy", font=get_font(25), base_color="#d7fcd4", hovering_color="White")
-        MEDIUM_BUTTON = Button(image=pygame.image.load("assets/PlayRect.png"), pos=(250, 350), 
-                            text_input="Medium", font=get_font(25), base_color="#d7fcd4", hovering_color="White")
-        BLACKOUT_BUTTON = Button(image=pygame.image.load("assets/PlayRect.png"), pos=(250, 500), 
-                            text_input="Blackout", font=get_font(25), base_color="#d7fcd4", hovering_color="White")
-
-        SCREEN.blit(DIFFICULTY_SELECT_TEXT, DIFFICULTY_SELECT_RECT)
-
-        for button in [EASY_BUTTON, MEDIUM_BUTTON, BLACKOUT_BUTTON]:
-            button.changeColor(DIFFICULTY_SELECT_MOUSE_POS)
-            button.update(SCREEN)
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
                 if EASY_BUTTON.checkForInput(DIFFICULTY_SELECT_MOUSE_POS):
+                    maze_size = 10
+                    maze = generate_maze(size=maze_size)
+                    player_pos = START_POS.copy()
+                    ai_pos = START_POS.copy()
+                    goal_pos = [maze_size - 2, maze_size - 2]
+                    q_table = np.zeros((maze_size, maze_size, len(ACTIONS)))
+                    episodes = 0
+                    current_mode = "Easy"
                     pygame.mixer.music.stop()
                     game_loop()
                 if MEDIUM_BUTTON.checkForInput(DIFFICULTY_SELECT_MOUSE_POS):
+                    maze_size = 16
+                    maze = generate_maze(size=maze_size)
+                    player_pos = START_POS.copy()
+                    ai_pos = START_POS.copy()
+                    goal_pos = [maze_size - 2, maze_size - 2]
+                    q_table = np.zeros((maze_size, maze_size, len(ACTIONS)))
+                    episodes = 0
+                    current_mode = "Medium"
                     pygame.mixer.music.stop()
-                    #medium()
+                    game_loop()
                 if BLACKOUT_BUTTON.checkForInput(DIFFICULTY_SELECT_MOUSE_POS):
+                    maze_size = 16
+                    maze = generate_maze(size=maze_size)
+                    player_pos = START_POS.copy()
+                    ai_pos = START_POS.copy()
+                    goal_pos = [maze_size - 2, maze_size - 2]
+                    q_table = np.zeros((maze_size, maze_size, len(ACTIONS)))
+                    episodes = 0
+                    current_mode = "Blackout"
                     pygame.mixer.music.stop()
-                    #blackout()
+                    game_loop()
+
         pygame.display.update()
-
-
 
 # Main game loop
 main_menu()
-
 
 # Cleanup
 pygame.quit()
