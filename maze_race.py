@@ -60,7 +60,7 @@ def get_next_pos(pos, action):
 
 def game_loop():
     global running, game_over, exploration_rate, ai_pos, maze, start_time
-    global player_pos, elapsed_time, episodes, maze_size, goal_pos, q_table
+    global player_pos, elapsed_time, episodes, maze_size, goal_pos, q_table, winner
 
     while running:
         # Handle events
@@ -86,7 +86,7 @@ def game_loop():
                     if start_time is None:  # Start timer on first move
                         start_time = time.time()
 
-            # Handle "Next" button click after game over
+            # Handle "Next" and "Back" button click after game over
             if game_over and event.type == pygame.MOUSEBUTTONDOWN:
                 if NEXT_BUTTON.collidepoint(event.pos):
                     maze_size = 16 if current_mode in ["Medium", "Blackout"] else 10
@@ -101,6 +101,8 @@ def game_loop():
                     winner = None
                     episodes += 1
                     print(f"Generated new {maze_size}x{maze_size} maze for Episode {episodes + 1}")
+                if BACK_BUTTON.collidepoint(event.pos):
+                    difficulty_select()
 
         # AI movement (Q-learning)
         if not game_over:
@@ -198,11 +200,17 @@ def game_loop():
             next_rect = next_text.get_rect(center=NEXT_BUTTON.center)
             screen.blit(next_text, next_rect)
 
+            # Draw Back button
+            pygame.draw.rect(screen, BLACK, BACK_BUTTON)
+            back_text = FONT.render("Back", True, WHITE)
+            back_rect = next_text.get_rect(center=BACK_BUTTON.center)
+            screen.blit(back_text, back_rect)
+
         # Update display and control frame rate
         pygame.display.flip()
         clock.tick(FPS)
 
-BG = pygame.image.load("assets/background.png")
+BG = pygame.image.load("assets/Background.png")
 SCREEN = pygame.display.set_mode((500,600))
 def get_font(size):
     return pygame.font.Font("assets/font.ttf", size)
@@ -241,7 +249,7 @@ def main_menu():
         pygame.display.update()
 
 def difficulty_select():
-    global maze, player_pos, ai_pos, episodes, maze_size, goal_pos, q_table, current_mode
+    global maze, player_pos, ai_pos, episodes, maze_size, goal_pos, q_table, current_mode, winner
     Difficulty_image = pygame.image.load('assets/Difficulty.png').convert()
     
     while True:
