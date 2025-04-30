@@ -37,7 +37,7 @@ Maze Race is a Pygame-based game where players and AI agents compete to reach a 
 
   ```bash
   git clone https://github.com/doleminhtriet/PlayervAI
-  cd maze-race
+  cd PlayervAI
   ```
 
 ### 3. Clone the Repository
