@@ -24,6 +24,7 @@ start_time = None      # Timer starts when first move is made
 elapsed_time = 0
 game_over = False
 winner = None          # Will store "Player" or "AI" when someone reaches green box
+debug_mode = False
 
 # Setup
 q_table = np.zeros((maze_size, maze_size, len(ACTIONS)))
@@ -70,6 +71,13 @@ def game_loop():
                 pygame.quit()
                 sys.exit()
             
+
+            #DEBUG MODE
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_d:
+                    debug_mode = not debug_mode 
+                    print(f"Debug Mode {'ON' if debug_mode else 'OFF'}")
+        
             # Player movement (arrow keys)
             if not game_over and event.type == pygame.KEYDOWN:
                 new_pos = player_pos.copy()
@@ -140,6 +148,16 @@ def game_loop():
 
         # Draw game elements
         screen.fill(WHITE)
+
+        #Stretch out the maze if in Easy to fill screen - Alex
+        bottom_margin = 60
+        if current_mode == "Easy":
+            draw_tile_size = min(WINDOW_WIDTH // maze_size, (WINDOW_HEIGHT - bottom_margin) // maze_size)
+        else:
+            draw_tile_size = TILE_SIZE
+
+
+
         if current_mode == "Blackout":
             # Blackout mode: render only 3x3 areas around player, AI, and goal
             for y in range(maze_size):
@@ -151,20 +169,39 @@ def game_loop():
                         (abs(x - goal_pos[0]) <= 1 and abs(y - goal_pos[1]) <= 1)
                     )
                     if is_visible and maze[y][x] == 1:
-                        pygame.draw.rect(screen, BLACK, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                        pygame.draw.rect(screen, BLACK, (x * draw_tile_size, y * draw_tile_size, draw_tile_size, draw_tile_size))
                     elif not is_visible:
-                        pygame.draw.rect(screen, BLACK, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                        pygame.draw.rect(screen, BLACK, (x * draw_tile_size, y * draw_tile_size, draw_tile_size, draw_tile_size))
         else:
             # Normal rendering for Easy and Medium
             for y in range(maze_size):
                 for x in range(maze_size):
                     if maze[y][x] == 1:
-                        pygame.draw.rect(screen, BLACK, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                        pygame.draw.rect(screen, BLACK, (x * draw_tile_size, y * draw_tile_size, draw_tile_size, draw_tile_size))
 
         # Draw goal (green box), player (blue), and AI (red)
-        pygame.draw.rect(screen, GREEN, (goal_pos[0] * TILE_SIZE, goal_pos[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE))
-        pygame.draw.rect(screen, BLUE, (player_pos[0] * TILE_SIZE, player_pos[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE))
-        pygame.draw.rect(screen, RED, (ai_pos[0] * TILE_SIZE, ai_pos[1] * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        pygame.draw.rect(screen, GREEN, (goal_pos[0] * draw_tile_size, goal_pos[1] * draw_tile_size, draw_tile_size, draw_tile_size))
+        pygame.draw.rect(screen, BLUE, (player_pos[0] * draw_tile_size, player_pos[1] * draw_tile_size, draw_tile_size, draw_tile_size))
+        pygame.draw.rect(screen, RED, (ai_pos[0] * draw_tile_size, ai_pos[1] * draw_tile_size, draw_tile_size, draw_tile_size))
+
+        # Draw border around maze - Alex
+        maze_pixel_width = maze_size * draw_tile_size
+        maze_pixel_height = maze_size * draw_tile_size
+        pygame.draw.rect(screen, BLACK, (0, 0, maze_pixel_width, maze_pixel_height), 4)
+
+        #Draw Debug Info when Enabled
+        if debug_mode:
+            #Show Player position, AI position, and Steps with episode number
+            playerPos = FONT.render(f"Player: {player_pos}", True, RED)
+            aiPos = FONT.render(f"AI: {ai_pos}", True, RED)
+            steps = FONT.render(f"Steps (Episode {episodes+1}): {elapsed_time:.2f}s", True, RED)
+
+            screen.blit(playerPos, (WINDOW_WIDTH - 200, 10))
+            screen.blit(aiPos, (WINDOW_WIDTH - 200, 30))
+            screen.blit(steps, (WINDOW_WIDTH - 200, 50))
+
+            #Draw blue box around goal
+            pygame.draw.rect(screen, BLUE, (goal_pos[0] * draw_tile_size, goal_pos[1] * draw_tile_size, draw_tile_size, draw_tile_size), 2)
 
         # Display timer and episode number
         timer_text = FONT.render(f"Time: {elapsed_time:.2f}s", True, BLACK)
