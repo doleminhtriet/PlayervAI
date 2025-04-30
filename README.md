@@ -44,11 +44,6 @@ Maze Race is a Pygame-based game where players and AI agents compete to reach a 
 
   ```bash
   PlayervAI
-  ├── __pycache__
-  │   ├── button.cpython-313.pyc
-  │   ├── config.cpython-313.pyc
-  │   ├── generator.cpython-313.pyc
-  │   └── maze_race.cpython-313.pyc
   ├── assets
   │   ├── Background.png
   │   ├── Difficulty.png
