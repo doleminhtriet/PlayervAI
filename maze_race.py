@@ -62,6 +62,7 @@ def get_next_pos(pos, action):
 def game_loop():
     global running, game_over, exploration_rate, ai_pos, maze, start_time
     global player_pos, elapsed_time, episodes, maze_size, goal_pos, q_table, winner
+    global debug_mode
 
     while running:
         # Handle events
