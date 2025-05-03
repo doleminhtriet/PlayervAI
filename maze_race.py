@@ -279,10 +279,53 @@ def main_menu():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
-                    difficulty_select()
+                    game_rules()
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.quit()
                     sys.exit()
+
+        pygame.display.update()
+
+def game_rules():
+    while True:
+        SCREEN.blit(BG, (0, 0))
+
+        RULES_MOUSE_POS = pygame.mouse.get_pos()
+
+        TITLE_TEXT = get_font(40).render("Game Rules", True, "#ffffff")
+        TITLE_RECT = TITLE_TEXT.get_rect(center=(250, 75))
+
+        # Text displaying rules
+        rules = "You BLUE player must reach the"
+        rulesCont = "GREEN goal before the RED AI!"
+
+        RULES_TEXT = get_font(15).render(rules, True, "#ffffff")
+        RULES_RECT = RULES_TEXT.get_rect(center=(250, 150))
+
+        RULESCONT_TEXT = get_font(15).render(rulesCont, True, "#ffffff")
+        RULESCONT_RECT = RULESCONT_TEXT.get_rect(center=(250, 200))
+
+        # Continue button
+        CONTINUE_BUTTON = Button(image=pygame.image.load("assets/PlayRect.png"), pos=(250, 450), 
+                            text_input="continue", font=get_font(30), base_color="#d7fcd4", hovering_color="White")
+        
+        SCREEN.blit(TITLE_TEXT, TITLE_RECT)
+        SCREEN.blit(RULES_TEXT, RULES_RECT)
+        SCREEN.blit(RULESCONT_TEXT, RULESCONT_RECT)
+
+
+        for button in [CONTINUE_BUTTON]:
+            button.changeColor(RULES_MOUSE_POS)
+            button.update(SCREEN)
+
+        # Choices player can make
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if CONTINUE_BUTTON.checkForInput(RULES_MOUSE_POS):
+                    difficulty_select()
 
         pygame.display.update()
 
