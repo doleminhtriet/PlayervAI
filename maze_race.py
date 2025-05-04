@@ -15,6 +15,16 @@ pygame.display.set_caption(WINDOW_TITLE)
 
 # Game state variables
 maze_size = 10
+#Quit Button design
+QUITBUTTON = Button (
+    image=pygame.image.load("assets/QuitRect.png"),
+    pos=(WINDOW_WIDTH - 80, WINDOW_HEIGHT - 40),
+    text_input="QUIT",
+    font=FONT,
+    base_color=WHITE,
+    hovering_color=RED
+)
+
 maze = generate_maze(size=maze_size)
 player_pos = START_POS.copy()  # [1, 1]
 ai_pos = START_POS.copy()      # [1, 1]
@@ -78,6 +88,11 @@ def game_loop():
                 if event.key == pygame.K_d:
                     debug_mode = not debug_mode 
                     print(f"Debug Mode {'ON' if debug_mode else 'OFF'}")
+
+            #QUIT BUTTON
+            if not game_over and event.type == pygame.MOUSEBUTTONDOWN:
+                if QUITBUTTON.checkForInput(pygame.mouse.get_pos()):
+                    main_menu()
         
             # Player movement (arrow keys)
             if not game_over and event.type == pygame.KEYDOWN:
@@ -205,6 +220,10 @@ def game_loop():
             pygame.draw.rect(screen, BLUE, (goal_pos[0] * draw_tile_size, goal_pos[1] * draw_tile_size, draw_tile_size, draw_tile_size), 2)
 
         # Display timer and episode number
+        if not game_over:
+            QUITBUTTON.changeColor(pygame.mouse.get_pos())
+            QUITBUTTON.update(screen)
+        
         timer_text = FONT.render(f"Time: {elapsed_time:.2f}s", True, BLACK)
         screen.blit(timer_text, (10, WINDOW_HEIGHT - 40))
         maze_text = FONT.render(f"Episode {episodes + 1}", True, BLACK)
@@ -326,7 +345,6 @@ def game_rules():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if CONTINUE_BUTTON.checkForInput(RULES_MOUSE_POS):
                     difficulty_select()
-
         pygame.display.update()
 
 def difficulty_select():
